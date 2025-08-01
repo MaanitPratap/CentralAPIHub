@@ -11,18 +11,8 @@ app = FastAPI()
 def read_root():
     return {"message": "Central API Hub is running!"}
 
-# Example: Fetch data from Website A
-@app.get("/data/websiteA")
-def get_website_a_data():
-    return {"data": "Sample data from Website A"}
-
 def get_db_connection():
     return psycopg2.connect(
-        # host="localhost",
-        # database="VibrantTrophies_DB",
-        # user="VT_USER",
-        # password="DB_VT_PWD"
-
         host="localhost",
         port=5433,
         database="vibrantminds",
@@ -40,9 +30,9 @@ def get_users():
     conn.close()
     return {"users": users}
 
-
 @app.get("/sessions")
 def get_sessions():
+    """Get raw session data from database."""
     conn = get_db_connection()
     cur = conn.cursor()
 
@@ -65,6 +55,7 @@ def get_sessions():
 
     cur.execute(query)
     rows = cur.fetchall()
+    cur.close()
     conn.close()
 
     return {"sessions": rows}
@@ -85,7 +76,6 @@ def format_moves(moves_dict: Dict[str, str]) -> List[Dict[str, str]]:
         
         # Parse the move description more carefully
         if "SUCCESSFUL MATCH" in move_description:
-            # Extract tile names and positions
             try:
                 # Split by ": " to get the part after "SUCCESSFUL MATCH: "
                 match_part = move_description.split("SUCCESSFUL MATCH: ")[1]
@@ -192,44 +182,9 @@ def format_session_data(raw_sessions: List[List]) -> List[Dict[str, Any]]:
     
     return formatted_sessions
 
-@app.get("/sessions/formatted")
-def get_formatted_sessions():
-    """Get sessions in a nicely formatted, readable structure."""
-    conn = get_db_connection()
-    cur = conn.cursor()
-
-    query = """
-    SELECT 
-        s.id AS session_id,
-        s.session_date,
-        s.score,
-        s.session_info,
-        s.settings,
-        a.name AS activity_name,
-        o.name AS organization_name,
-        p.email AS participant_name
-    FROM 
-        public.vm2_backend_session s
-    LEFT JOIN public.vm2_backend_activity a ON s.activity_id = a.id
-    JOIN public.vm2_backend_organization o ON s.organization_id = o.user_id
-    JOIN public.vm2_backend_participant p ON s.participant_id = p.user_id;
-    """
-
-    cur.execute(query)
-    rows = cur.fetchall()
-    cur.close()
-    conn.close()
-
-    formatted_sessions = format_session_data(rows)
-    
-    return {
-        "total_sessions": len(formatted_sessions),
-        "sessions": formatted_sessions
-    }
-
-@app.get("/sessions/formatted/readable")
-def get_formatted_sessions_readable():
-    """Get sessions from database in a human-readable format with proper structure."""
+@app.get("/sessions/readable")
+def get_readable_sessions():
+    """Get sessions from database in a human-readable format."""
     conn = get_db_connection()
     cur = conn.cursor()
 
@@ -321,63 +276,3 @@ def format_provided_sessions(sessions_data: Dict[str, List]):
         "total_sessions": len(formatted_sessions),
         "sessions": formatted_sessions
     }
-
-@app.post("/sessions/format/readable")
-def format_provided_sessions_readable(sessions_data: Dict[str, List]):
-    """Format provided session data into a human-readable format with proper structure."""
-    raw_sessions = sessions_data.get("sessions", [])
-    formatted_sessions = format_session_data(raw_sessions)
-    
-    # Create a more readable summary
-    readable_summary = {
-        "summary": {
-            "total_sessions": len(formatted_sessions),
-            "total_score": sum(session["score"] for session in formatted_sessions),
-            "average_score": round(sum(session["score"] for session in formatted_sessions) / len(formatted_sessions), 2) if formatted_sessions else 0,
-            "participant": formatted_sessions[0]["participant"] if formatted_sessions else "Unknown",
-            "activity": formatted_sessions[0]["activity"] if formatted_sessions else "Unknown"
-        },
-        "sessions": []
-    }
-    
-    for session in formatted_sessions:
-        # Create a more readable session format
-        readable_session = {
-            "session_info": {
-                "id": session["session_id"],
-                "date": session["session_date"],
-                "score": session["score"],
-                "activity": session["activity"],
-                "participant": session["participant"]
-            },
-            "game_details": {
-                "level": f"Level {session['game_details']['level']} of {session['game_details']['total_levels']}",
-                "tileset": session["game_details"]["tileset"],
-                "package": session["game_details"]["package"],
-                "layout": session["game_details"]["layout"],
-                "status": session["game_details"]["completion_status"],
-                "duration": f"{session['game_details']['duration_seconds']} seconds"
-            },
-            "performance": {
-                "matches": {
-                    "correct": session["performance_metrics"]["correct_matches"],
-                    "incorrect": session["performance_metrics"]["incorrect_matches"],
-                    "accuracy": f"{round(session['performance_metrics']['correct_matches'] / (session['performance_metrics']['correct_matches'] + session['performance_metrics']['incorrect_matches']) * 100, 1)}%" if (session['performance_metrics']['correct_matches'] + session['performance_metrics']['incorrect_matches']) > 0 else "0%"
-                },
-                "actions": {
-                    "selections": session["performance_metrics"]["selections"],
-                    "deselections": session["performance_metrics"]["deselections"],
-                    "hints_used": session["performance_metrics"]["hints_used"],
-                    "shuffles": session["performance_metrics"]["times_shuffled"]
-                }
-            },
-            "moves_summary": {
-                "total_moves": len(session["moves"]),
-                "successful_matches": len([move for move in session["moves"] if move["type"] == "successful_match"]),
-                "mismatches": len([move for move in session["moves"] if move["type"] == "mismatch"]),
-                "move_details": session["moves"]
-            }
-        }
-        readable_summary["sessions"].append(readable_session)
-    
-    return readable_summary
