@@ -2,12 +2,12 @@ import json
 from typing import List, Dict, Any
 from config.database import DatabaseConfig
 
-class VibrantMindsService:
-    """Service class for handling VibrantMinds session data operations."""
+class Service:
+    """Service class for handling session data operations."""
     
     @staticmethod
     def get_raw_sessions() -> List[List]:
-        """Get raw session data from VibrantMinds database."""
+        """Get raw session data from database."""
         conn = DatabaseConfig.get_vibrantminds_connection()
         cur = conn.cursor()
 
@@ -37,7 +37,7 @@ class VibrantMindsService:
 
     @staticmethod
     def get_users() -> List[List]:
-        """Get users from VibrantMinds database."""
+        """Get users from database."""
         conn = DatabaseConfig.get_vibrantminds_connection()
         cur = conn.cursor()
         cur.execute("SELECT * FROM users;")
@@ -131,7 +131,7 @@ class VibrantMindsService:
             session_id, session_date, score, session_info_str, settings, activity_name, organization_name, participant_email = session
             
             # Parse session info
-            session_info = VibrantMindsService.parse_session_info(session_info_str)
+            session_info = Service.parse_session_info(session_info_str)
             
             # Format the session data
             formatted_session = {
@@ -164,7 +164,7 @@ class VibrantMindsService:
                     "times_shuffled": session_info.get("timesShuffled", 0),
                     "num_types": session_info.get("numTypes", 0)
                 },
-                "moves": VibrantMindsService.format_moves(session_info.get("moves", {}))
+                "moves": Service.format_moves(session_info.get("moves", {}))
             }
             
             formatted_sessions.append(formatted_session)
@@ -180,7 +180,7 @@ class VibrantMindsService:
             session_id, session_date, score, session_info_str, settings, activity_name, organization_name, participant_email = session
             
             # Parse session info
-            session_info = VibrantMindsService.parse_session_info(session_info_str)
+            session_info = Service.parse_session_info(session_info_str)
             
             # Create a copy of session_info without the moves data
             session_info_without_moves = {}
