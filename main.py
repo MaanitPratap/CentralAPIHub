@@ -182,7 +182,7 @@ def format_session_data(raw_sessions: List[List]) -> List[Dict[str, Any]]:
     
     return formatted_sessions
 
-@app.get("/sessions/readable")
+@app.get("/sessions/readable/extra")
 def get_readable_sessions():
     """Get sessions from database in a human-readable format."""
     conn = get_db_connection()
@@ -259,18 +259,119 @@ def get_readable_sessions():
                 "total_moves": len(session["moves"]),
                 "successful_matches": len([move for move in session["moves"] if move["type"] == "successful_match"]),
                 "mismatches": len([move for move in session["moves"] if move["type"] == "mismatch"]),
-                "move_details": session["moves"]
+                # "move_details": session["moves"]
             }
         }
         readable_summary["sessions"].append(readable_session)
     
     return readable_summary
 
-@app.post("/sessions/format")
+@app.post("/sessions/format/extra")
 def format_provided_sessions(sessions_data: Dict[str, List]):
     """Format provided session data into readable format."""
     raw_sessions = sessions_data.get("sessions", [])
     formatted_sessions = format_session_data(raw_sessions)
+    
+    return {
+        "total_sessions": len(formatted_sessions),
+        "sessions": formatted_sessions
+    }
+
+def format_session_data_without_moves(raw_sessions: List[List]) -> List[Dict[str, Any]]:
+    """Convert raw session data into a nicely formatted structure, ignoring moves data and preserving all variable names."""
+    formatted_sessions = []
+    
+    for session in raw_sessions:
+        session_id, session_date, score, session_info_str, settings, activity_name, organization_name, participant_email = session
+        
+        # Parse session info
+        session_info = parse_session_info(session_info_str)
+        
+        # Create a copy of session_info without the moves data
+        session_info_without_moves = {}
+        for key, value in session_info.items():
+            if key != "moves":  # Ignore moves data
+                session_info_without_moves[key] = value
+        
+        # Format the session data while preserving all original variable names
+        formatted_session = {
+            "session_id": session_id,
+            "session_date": session_date,
+            "score": score,
+            "activity": activity_name,
+            "organization": organization_name,
+            "participant": participant_email,
+            "session_info": session_info_without_moves  # Include all session info except moves
+        }
+        
+        formatted_sessions.append(formatted_session)
+    
+    return formatted_sessions
+
+@app.get("/sessions/readable")
+def get_readable_sessions_without_moves():
+    """Get sessions from database in a human-readable format, ignoring moves data and preserving variable names."""
+    conn = get_db_connection()
+    cur = conn.cursor()
+
+    query = """
+    SELECT 
+        s.id AS session_id,
+        s.session_date,
+        s.score,
+        s.session_info,
+        s.settings,
+        a.name AS activity_name,
+        o.name AS organization_name,
+        p.email AS participant_name
+    FROM 
+        public.vm2_backend_session s
+    LEFT JOIN public.vm2_backend_activity a ON s.activity_id = a.id
+    JOIN public.vm2_backend_organization o ON s.organization_id = o.user_id
+    JOIN public.vm2_backend_participant p ON s.participant_id = p.user_id;
+    """
+
+    cur.execute(query)
+    rows = cur.fetchall()
+    cur.close()
+    conn.close()
+
+    formatted_sessions = format_session_data_without_moves(rows)
+    
+    # Create a readable summary
+    readable_summary = {
+        "summary": {
+            "total_sessions": len(formatted_sessions),
+            "total_score": sum(session["score"] for session in formatted_sessions),
+            "average_score": round(sum(session["score"] for session in formatted_sessions) / len(formatted_sessions), 2) if formatted_sessions else 0,
+            "participant": formatted_sessions[0]["participant"] if formatted_sessions else "Unknown",
+            "activity": formatted_sessions[0]["activity"] if formatted_sessions else "Unknown"
+        },
+        "sessions": []
+    }
+    
+    for session in formatted_sessions:
+        # Create a readable session format while preserving all variable names
+        readable_session = {
+            "session_info": {
+                "id": session["session_id"],
+                "date": session["session_date"],
+                "score": session["score"],
+                "activity": session["activity"],
+                "participant": session["participant"],
+                "organization": session["organization"]
+            },
+            "game_data": session["session_info"]  # Include all session info except moves
+        }
+        readable_summary["sessions"].append(readable_session)
+    
+    return readable_summary
+
+@app.post("/sessions/format")
+def format_provided_sessions_without_moves(sessions_data: Dict[str, List]):
+    """Format provided session data into readable format, ignoring moves data and preserving variable names."""
+    raw_sessions = sessions_data.get("sessions", [])
+    formatted_sessions = format_session_data_without_moves(raw_sessions)
     
     return {
         "total_sessions": len(formatted_sessions),
