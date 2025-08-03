@@ -43,7 +43,6 @@ All VibrantMinds endpoints are prefixed with `/vibrantminds/`:
 
 ### Common Issues
 
-1. **Wrong URL**: Using old URLs without the `/vibrantminds/` prefix
 2. **Missing dependencies**: FastAPI not installed
 3. **Database connection**: Database not running or wrong credentials
 4. **Import errors**: Python path issues

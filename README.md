@@ -44,24 +44,13 @@ CentralAPIHub/
    ```bash
    pip install -r requirements.txt
    ```
-3. Copy `env.example` to `.env` and configure your database settings:
-   ```bash
-   cp env.example .env
-   ```
-4. Update the `.env` file with your database credentials
+3. Update the `.env` file with your database credentials
 
 ## Configuration
 
 The application uses environment variables for configuration. Create a `.env` file based on `env.example`:
 
 ```env
-# VibrantMinds Database Configuration
-VIBRANTMINDS_HOST=localhost
-VIBRANTMINDS_PORT=5433
-VIBRANTMINDS_DATABASE=vibrantminds
-VIBRANTMINDS_USER=vm2
-VIBRANTMINDS_PASSWORD=BC&i#6h9dLsYA7
-
 # Future Database Configuration (for other databases)
 # OTHER_DB_HOST=localhost
 # OTHER_DB_PORT=5432
